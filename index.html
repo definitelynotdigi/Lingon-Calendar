@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Lingon — Calendar</title>
+  <style>
+    :root {
+      --cell-size: 42px;
+      --gap: 12px;
+      --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    body {
+    font-family: "Fantasy", monospace;
+    padding: 100px;
+    background-image: url('img/itachi.jpg');
+    background-size: cover;
+    background-position: center;
+	  background-repeat: no-repeat;
+	  background-attachment: fixed;
+      color: #111;
+    }
+    h1{
+  font-size: 3.5rem;
+  text-align: center;
+  margin: 10px 200px;
+  padding: 10px 25px;
+  background: rgba(136, 136, 136, 0.541);
+  color: #000000d8;
+  border-radius: 12px;
+  display: inline-block;
+    }
+    .year-wrap {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--gap);
+      max-width: 1000px;
+      margin: 100px auto;
+    }
+    .month-card {
+      background: rgba(136, 136, 136, 0.671);
+      border-radius: 10px;
+      box-shadow: 0 6px 18px rgba(10, 10, 20, 0.274);
+      padding: 12px;
+    }
+    .month-title {
+      text-align:center;
+      font-weight:700;
+      margin-bottom:6px;
+    }
+    table.calendar {
+      width:100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+    table.calendar th {
+      font-weight:600;
+      font-size: 0.85rem;
+      padding:6px 4px;
+      text-align:center;
+    }
+    table.calendar td {
+      height: var(--cell-size);
+      vertical-align: top;
+      padding: 6px;
+      border-radius:6px;
+      position: relative;
+      cursor: default;
+      transition: box-shadow .12s ease, transform .06s ease;
+    }
+    .date-num {
+      font-size: 0.95rem;
+      line-height: 1;
+      display: inline-block;
+      padding: 3px 6px;
+      border-radius: 6px;
+    }
+    .weekend .date-num { color: #c92525; font-weight:700; }
+    .empty { background: transparent; }
+    .holiday { background: linear-gradient(0deg, rgba(255, 0, 0, 0.205), rgba(255,255,255,0.02)); border: 1px solid rgba(255,200,200,0.5); color:rgba(221, 0, 0, 0.911);}
+    td:hover { box-shadow: 0 6px 14px rgba(20,20,40,0.06); }
+    td.holiday:hover { outline: 3px solid rgba(200,30,30,0.9); }
+    /* Tooltip popup */
+    .holiday .tooltip {
+      display: none;
+      position: absolute;
+      z-index: 30;
+      top: 110%;
+      left: 50%;
+      transform: translateX(-50%);
+      min-width: 180px;
+      padding: 8px;
+      background: #ffc6c6ab;
+      border-radius: 8px;
+      box-shadow: 0 8px 22px rgba(0,0,0,0.15);
+      font-size: 0.85rem;
+      text-align: center;
+    }
+    td.holiday:hover .tooltip { 
+      display:block;
+    }
+    .holiday .tooltip img {
+      width: 100%;
+      max-height: 100px;
+      object-fit: cover;
+      border-radius: 6px;
+      margin-bottom:6px;
+    }
+    .copyright {
+      color: rgba(255, 255, 255, 0.712);
+      margin-bottom: -50px;
+      text-align:end;
+    }
+  </style>
+</head>
+<body>
+  <h1>Calendar — Year 2000</h1>
+  <div class="year-wrap" id="yearWrap"></div>
+
+  <script>
+    function pad(n){ return n < 10 ? '0' + n : '' + n; }
+    function isoDate(y,m,d){ return y + '-' + pad(m) + '-' + pad(d); }
+
+    const year = 2000;
+    const holidays = {};
+
+    // Populate holidays based on TimeAndDate list for Philippines in 2000 :contentReference[oaicite:1]{index=1}
+    const list = [
+      ['2000-01-01', "New Year's Day", 'fireworks.jpg'],
+      ['2000-02-05', "Lunar New Year", 'lunar.avif'],
+      ['2000-02-25', "People Power Anniversary", 'pplpower.jpg'],
+      ['2000-04-09', "Day of Valor", 'dov.jpg'],
+      ['2000-04-21', "Good Friday", 'gf.jfif'],
+      ['2000-04-22', "Black Saturday", 'bs.jfif'],
+      ['2000-04-23', "Easter Sunday", 'easter.jpg'],
+      ['2000-05-01', "Labor Day", 'labor.jpg'],
+      ['2000-06-12', "Independence Day", 'in.jpg'],
+      ['2000-08-28', "National Heroes Day", 'hero.png'],
+      ['2000-11-01', "All Saints' Day", 's.jfif'],
+      ['2000-11-02', "All Souls' Day", 'soul.png'],
+      ['2000-11-30', "Bonifacio Day", 'bon.webp'],
+      ['2000-12-24', "Christmas Eve", 'noche.jfif'],
+      ['2000-12-25', "Christmas Day", 'xmas.webp'],
+      ['2000-12-30', "Rizal Day", 'rizal.jpg'],
+      ['2000-12-31', "New Year's Eve", 'ny.gif']
+    ];
+    list.forEach(([date, name, img]) => { holidays[date] = { name, img }; });
+
+    const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    const yearWrap = document.getElementById('yearWrap');
+
+    function makeMonthTable(y, mIndex) {
+      const card = document.createElement('div');
+      card.className = 'month-card';
+      const title = document.createElement('div');
+      title.className = 'month-title';
+      title.textContent = months[mIndex] + ' ' + y;
+      card.appendChild(title);
+
+      const tbl = document.createElement('table');
+      tbl.className = 'calendar';
+      const thead = document.createElement('thead');
+      const headerRow = document.createElement('tr');
+      ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(w => {
+        const th = document.createElement('th');
+        th.textContent = w;
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+      tbl.appendChild(thead);
+
+      const tbody = document.createElement('tbody');
+      const first = new Date(y, mIndex, 1);
+      const daysInMonth = new Date(y, mIndex + 1, 0).getDate();
+      let row = document.createElement('tr');
+      for (let i = 0; i < first.getDay(); i++) {
+        const td = document.createElement('td');
+        td.className = 'empty';
+        row.appendChild(td);
+      }
+      for (let d = 1; d <= daysInMonth; d++) {
+        const cur = new Date(y, mIndex, d);
+        const td = document.createElement('td');
+        if (cur.getDay() === 0 || cur.getDay() === 6) td.classList.add('weekend');
+
+        const span = document.createElement('span');
+        span.className = 'date-num';
+        span.textContent = d;
+        td.appendChild(span);
+
+        const key = isoDate(y, mIndex+1, d);
+        if (holidays[key]) {
+          td.classList.add('holiday');
+          const tip = document.createElement('div');
+          tip.className = 'tooltip';
+          const img = document.createElement('img');
+          img.src = holidays[key].img;
+          const text = document.createElement('div');
+          text.textContent = holidays[key].name + ' (' + key + ')';
+          tip.appendChild(img);
+          tip.appendChild(text);
+          td.appendChild(tip);
+        }
+
+        row.appendChild(td);
+        if (cur.getDay() === 6) {
+          tbody.appendChild(row);
+          row = document.createElement('tr');
+        }
+      }
+      if (row.children.length > 0) {
+        while (row.children.length < 7) {
+          const td = document.createElement('td');
+          td.className = 'empty';
+          row.appendChild(td);
+        }
+        tbody.appendChild(row);
+      }
+      tbl.appendChild(tbody);
+      card.appendChild(tbl);
+      return card;
+    }
+
+    for (let i = 0; i < 12; i++) {
+      yearWrap.appendChild(makeMonthTable(year, i));
+    }
+  </script>
+  <p class="copyright">&copy Deji</p>
+</body>
+</html>
